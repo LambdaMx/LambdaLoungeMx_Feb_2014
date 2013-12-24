@@ -3,12 +3,10 @@ import Keyboard
 import Window
 import Graphics.Element
 
-greeting : Element
-greeting = [markdown|
-# Bienvenido a Lambda Lounge Mx !
-|]
+-- Content
 
-presentation = [markdown|
+invitation = [markdown|
+# Bienvenido a Lambda Lounge Mx !
 Lambda Lounge Mx es un evento para tí, que te interesa compartir experiencias 
 y conocimiento relacionado a la programación funcional, así como aprender de 
 otras personas sobre estos temas. El único requisito para que participes es
@@ -28,7 +26,22 @@ solución en un espacio de 25 minutos. La agenda del evento es la siguiente:
 |17:30|18:00| Cierre
 |]
 
-invitation = flow down [greeting, presentation]
+-- Data definitiona
+
+data State = Approaching | Spinning | Inviting
+
+type Point = (Float, Float)
+type Logo  = { img: Form, pos: Point }
+type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
+type Input = { click:Bool, delta:Time, pos:Point }
+
+-- App parameters
+
+defaultRadius = 350
+
+-- Aux functions
+
+asPoint (x,y) = (toFloat x, toFloat y)
 
 -- Images
 
@@ -47,25 +60,8 @@ logos = map (image 120 120) [
   "img/scala.png"
   ] |> map toForm
 
--- Data definitiona
 
-data State = Approaching | Spinning | Inviting
-
-type Point = (Float, Float)
-type Logo  = { img: Form, pos: Point }
-type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
-type Input = { click:Bool, delta:Time, pos:Point }
-
---------------
-
-defaultRadius = 350
-
---------------
-
-
-asPoint (x,y) = (toFloat x, toFloat y)
-
---------------
+-- Page Logic
 
 initialPage : Page
 initialPage = 
@@ -78,6 +74,30 @@ initialPage =
     , content = invitation |> toForm |> alpha 0
     , state   = Approaching
     }
+
+stepPage : Input -> Page -> Page
+stepPage {click, delta, pos} ({center, logos, content, state} as page) = 
+  let idxLogos            = zip [0..(length logos)-1] <| map .img logos
+      position i          = positionFor i (length logos) 
+      moveLogo (i,l)      = { img = l, pos = position i delta }
+      resizeLogo (i,logo) = (i, resize i delta logo)
+      newState            = if | state == Approaching && click -> Spinning
+                               | state == Spinning && click    -> Inviting
+                               | otherwise                     -> state
+      toAlpha {img,pos}   = {img = relativeAlpha pos img, pos = pos}
+  in {page | center  <- case state of
+                          Approaching -> { img = alonzoImg, pos = (0,0) }
+                          Spinning    -> { img = lambdaImg, pos = (0,0) }
+                          Inviting    -> { img = lambdaImg |> scale 0, pos = (0,0) }
+           , logos   <- case state of
+                          Approaching -> logos |> map toAlpha
+                          _           -> map (moveLogo . resizeLogo) idxLogos
+           , content <- case state of
+                          Inviting -> content |> alpha 1
+                          _        -> content 
+           , state   <- newState
+     }
+
 
 -- #TODO Abstract rotation by means of a velocity parameter (rad/seg)
 positionFor : Int -> Int -> Time -> Point
@@ -93,28 +113,6 @@ resize i time form =
 
 distance2Center (x,y) = sqrt (x^2 + y^2) / defaultRadius
 relativeAlpha pos f  = alpha (distance2Center pos) f
-
-stepPage : Input -> Page -> Page
-stepPage {click, delta, pos} ({center, logos, content, state} as page) = 
-  let idxLogos            = zip [0..(length logos)-1] <| map .img logos
-      position i          = positionFor i (length logos) 
-      moveLogo (i,l)      = { img = l, pos = position i delta }
-      resizeLogo (i,logo) = (i, resize i delta logo)
-      newState            = if | state == Approaching && click -> Spinning
-                               | state == Spinning && click    -> Inviting
-                               | otherwise                     -> state
-  in {page | center  <- case state of
-                          Approaching -> { img = alonzoImg, pos = (0,0) }
-                          Spinning    -> { img = lambdaImg, pos = (0,0) }
-                          Inviting    -> { img = lambdaImg |> scale 0, pos = (0,0) }
-           , logos   <- case state of
-                          Approaching -> logos |> map (\{img, pos} -> {img = relativeAlpha pos img, pos = pos}) 
-                          _           -> map (moveLogo . resizeLogo) idxLogos
-           , content <- case state of
-                          Inviting -> content |> alpha 1
-                          _        -> content 
-           , state   <- newState
-     }
 
 -----------------
 delta = foldp (+) 0 (fps 30) -- inSeconds <~fps 30
