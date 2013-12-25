@@ -33,7 +33,7 @@ data State = Approaching | Spinning | Inviting
 type Point = (Float, Float)
 type Logo  = { img: Form, pos: Point }
 type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
-type Input = { click:Bool, delta:Time, pos:Point }
+type Input = { click: Bool, delta: Time, pos: Point }
 
 -- App parameters
 
@@ -84,25 +84,24 @@ stepPage {click, delta, pos} ({center, logos, content, state} as page) =
       newState            = if | state == Approaching && click -> Spinning
                                | state == Spinning && click    -> Inviting
                                | otherwise                     -> state
-      toAlpha {img,pos}   = {img = relativeAlpha pos img, pos = pos}
+      toAlpha logo       = {logo| img <- relativeAlpha pos logo.img }
   in {page | center  <- case state of
                           Approaching -> { img = alonzoImg, pos = (0,0) }
                           Spinning    -> { img = lambdaImg, pos = (0,0) }
                           Inviting    -> { img = lambdaImg |> scale 0, pos = (0,0) }
            , logos   <- case state of
-                          Approaching -> logos |> map toAlpha
-                          _           -> map (moveLogo . resizeLogo) idxLogos
+                          Approaching -> logos    |> map toAlpha
+                          _           -> idxLogos |> map (moveLogo . resizeLogo) 
            , content <- case state of
                           Inviting -> content |> alpha 1
                           _        -> content 
            , state   <- newState
      }
 
-
 -- #TODO Abstract rotation by means of a velocity parameter (rad/seg)
 positionFor : Int -> Int -> Time -> Point
 positionFor i n time = 
-  let angle  = (turns <| toFloat(i) /toFloat(n) ) + pi - (time * pi / 6000)
+  let angle  = (turns <| toFloat(i) / toFloat(n) ) + pi - (time * pi / 6000)
   in fromPolar (defaultRadius, angle)
 
 -- #FIXME it depends on time, not on the previous state
@@ -112,6 +111,7 @@ resize i time form =
   scale (1 + 0.2 *  (sin <| (time * pi / 4000) + toFloat(i) * pi / 10 )) <| head (drop i logos)
 
 distance2Center (x,y) = sqrt (x^2 + y^2) / defaultRadius
+
 relativeAlpha pos f  = alpha (distance2Center pos) f
 
 -----------------
@@ -124,10 +124,10 @@ pageState = foldp stepPage initialPage input
 
 -----------------
 
-display : Page -> Element
-display {center, logos, content, state} = 
+display : (Int,Int) -> Page -> Element
+display (w,h) {center, logos, content, state} = 
   let draw {img,pos} = move pos img
-  in collage 900 900 <| draw center :: (map draw logos) ++ [content]
+  in collage w h <| draw center :: (map draw logos) ++ [content]
 
-main = lift display pageState
+main = lift2 display Window.dimensions pageState
 
