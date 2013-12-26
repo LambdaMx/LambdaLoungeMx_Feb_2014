@@ -94,14 +94,15 @@ stepCenter state logo =
 
 stepLogos : State -> Time -> Point -> (Int, Int) -> [Logo] -> [Logo]
 stepLogos state delta pos dim logos = 
-  let idxLogos            = zip [0..(length logos)-1] <| map .img logos
+  let toAlpha logo        = {logo| img <- relativeAlpha pos dim logo.img }
+      idxLogos            = zip [0..(length logos)-1] logos
+      moveLogo (i,logo)   = (i, { logo | pos <-  position i delta })
+      resizeLogo (i,logo) = (i, { logo | scale <- 1 + 0.2 * (indexedSin i delta) })
+      unindex (i,logo)    = logo
       position i          = positionFor i (length logos) 
-      moveLogo (i,logo)   = { img = logo, pos = position i delta, scale = 1 }
-      resizeLogo (i,logo) = (i, resize i delta logo)
-      toAlpha logo        = {logo| img <- relativeAlpha pos dim logo.img }
   in case state of
     Approaching -> logos    |> map toAlpha
-    _           -> idxLogos |> map (moveLogo . resizeLogo) 
+    _           -> idxLogos |> map (unindex . moveLogo . resizeLogo) 
 
 stepContent : State -> Form -> Form
 stepContent state content = 
@@ -144,7 +145,7 @@ pageState = foldp stepPage initialPage input
 
 display : (Int,Int) -> Page -> Element
 display (w,h) {center, logos, content, state} = 
-  let draw {img,pos} = move pos img
+  let draw logo = logo.img |> move logo.pos |> scale logo.scale
   in collage w h <| draw center :: (map draw logos) ++ [content]
 
 main = lift2 display Window.dimensions pageState
