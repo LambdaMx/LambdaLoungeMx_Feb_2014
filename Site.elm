@@ -6,23 +6,23 @@ import Graphics.Element
 -- Content
 
 invitation = [markdown|
-# Bienvenido a Lambda Lounge Mx !
-Lambda Lounge Mx es un evento para tí, que te interesa compartir experiencias 
+# ¡ Bienvenido a Lambda Lounge Mx !
+**Lambda Lounge Mx** es un evento para tí, que te interesa compartir experiencias 
 y conocimiento relacionado a la programación funcional, así como aprender de 
 otras personas sobre estos temas. El único requisito para que participes es
 que resuelvas en un lenguaje o estilo funcional cualquiera de los [dos 
-problemas](./problemas.elm) que hemos planteado y que estés dispuesto a exponer tu 
-solución en un espacio de 25 minutos. La agenda del evento es la siguiente: 
+problemas](./problemas.elm) que hemos planteado y que estés dispuesto a exponer
+tu solución en un espacio de 25 minutos. La agenda del evento es la siguiente: 
 
 |Inicio|Fin|Descripción
 |------|---|-----------
 |10:00|10:30| Opening
-|10:30|11:30| Keynote por @sergiodnila
+|10:30|11:30| Plática por @sergiodnila
 |11:30|13:00| Presentaciones de soluciones a los problemas
-|13:00|14:00| Keynote por @lux_spes
+|13:00|14:00| Plática por @lux_spes
 |14:00|15:00| Comida
 |15:00|16:30| Presentaciones de soluciones a los problemas.
-|16:30|17:30| Keynote por @hiphoox
+|16:30|17:30| Plática por @hiphoox
 |17:30|18:00| Cierre
 |]
 
@@ -33,7 +33,7 @@ data State = Approaching | Spinning | Inviting
 type Point = (Float, Float)
 type Logo  = { img: Form, pos: Point }
 type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
-type Input = { click: Bool, delta: Time, pos: Point }
+type Input = { click: Bool, delta: Time, pos: Point, dim: (Int,Int) }
 
 -- App parameters
 
@@ -50,13 +50,13 @@ alonzoImg = image 200 200 "img/AlonzoChurch.png" |> toForm
 
 logos = map (image 120 120) [
   "img/clojure.png",
-  "img/elixir.png",
-  "img/elm.png",
+  "img/mathematica.png",
+  "img/haskell.png",
   "img/erlang.png",
   "img/fsharp.png",
-  "img/haskell.png",
-  "img/mathematica.png",
   "img/scheme.png",
+  "img/elixir.png",
+  "img/elm.png",
   "img/scala.png"
   ] |> map toForm
 
@@ -68,57 +68,72 @@ initialPage =
   let idxLogos       = zip [0..(length logos)-1] logos
       position i     = positionFor i (length logos) 
       moveLogo (i,l) = { img = l, pos = position i 0 }
-  in
-    { center  = { img = alonzoImg |> alpha 0, pos = (0,0) }
-    , logos   = idxLogos |> map moveLogo
-    , content = invitation |> toForm |> alpha 0
-    , state   = Approaching
-    }
+  in { center  = { img = alonzoImg, pos = (0,0) }
+     , logos   = idxLogos |> map moveLogo
+     , content = invitation |> toForm |> alpha 0
+     , state   = Approaching
+     }
 
 stepPage : Input -> Page -> Page
-stepPage {click, delta, pos} ({center, logos, content, state} as page) = 
+stepPage {click, delta, pos, dim} ({center, logos, content, state} as page) = 
+  let newState = if | state == Approaching && click -> Spinning
+                    | state == Spinning && click    -> Inviting
+                    | otherwise                     -> state
+  in { page | center  <- stepCenter  newState center
+            , content <- stepContent newState content
+            , logos   <- stepLogos   newState delta pos dim logos
+            , state   <- newState
+     }
+
+stepCenter : State -> Logo -> Logo
+stepCenter state logo = 
+  case state of
+  Approaching -> logo
+  Spinning    -> { logo | img <- lambdaImg }
+  Inviting    -> { logo | img <- scale 0 lambdaImg }
+
+stepLogos : State -> Time -> Point -> (Int, Int) -> [Logo] -> [Logo]
+stepLogos state delta pos dim logos = 
   let idxLogos            = zip [0..(length logos)-1] <| map .img logos
       position i          = positionFor i (length logos) 
       moveLogo (i,l)      = { img = l, pos = position i delta }
       resizeLogo (i,logo) = (i, resize i delta logo)
-      newState            = if | state == Approaching && click -> Spinning
-                               | state == Spinning && click    -> Inviting
-                               | otherwise                     -> state
-      toAlpha logo       = {logo| img <- relativeAlpha pos logo.img }
-  in {page | center  <- case state of
-                          Approaching -> { img = alonzoImg, pos = (0,0) }
-                          Spinning    -> { img = lambdaImg, pos = (0,0) }
-                          Inviting    -> { img = lambdaImg |> scale 0, pos = (0,0) }
-           , logos   <- case state of
-                          Approaching -> logos    |> map toAlpha
-                          _           -> idxLogos |> map (moveLogo . resizeLogo) 
-           , content <- case state of
-                          Inviting -> content |> alpha 1
-                          _        -> content 
-           , state   <- newState
-     }
+      toAlpha logo        = {logo| img <- relativeAlpha pos dim logo.img }
+  in case state of
+    Approaching -> logos    |> map toAlpha
+    _           -> idxLogos |> map (moveLogo . resizeLogo) 
+
+stepContent : State -> Form -> Form
+stepContent state content = 
+  case state of
+  Inviting -> content |> alpha 1
+  _        -> content   
 
 -- #TODO Abstract rotation by means of a velocity parameter (rad/seg)
 positionFor : Int -> Int -> Time -> Point
 positionFor i n time = 
-  let angle  = (turns <| toFloat(i) / toFloat(n) ) + pi - (time * pi / 6000)
+  let angle  = (turns <| toFloat(i) / toFloat(n) ) - (time * pi / 6000)
   in fromPolar (defaultRadius, angle)
 
 -- #FIXME it depends on time, not on the previous state
 -- #TODO abstract velocity of expansion/contraction by means of a parameter (rad/seg ?)
 resize : Int -> Time -> Form -> Form
 resize i time form = 
-  scale (1 + 0.2 *  (sin <| (time * pi / 4000) + toFloat(i) * pi / 10 )) <| head (drop i logos)
+  scale (1 + 0.2 *  (sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 )) <| head (drop i logos)
 
-distance2Center (x,y) = sqrt (x^2 + y^2) / defaultRadius
+distance2Center (x,y) (w,h) = 
+  let hw = toFloat(w) / 2
+      hh = toFloat(h) / 2
+  in sqrt ((x - hw)^2 + (y - hh)^2) / sqrt (hw^2 + hh^2)
 
-relativeAlpha pos f  = alpha (distance2Center pos) f
+relativeAlpha pos dim f = alpha (1 - distance2Center pos dim) f
 
 -----------------
 delta = foldp (+) 0 (fps 30) -- inSeconds <~fps 30
 input = sampleOn delta <| Input <~ Mouse.isDown
                                  ~ delta
                                  ~ (asPoint <~ Mouse.position)
+                                 ~ Window.dimensions
 
 pageState = foldp stepPage initialPage input
 
