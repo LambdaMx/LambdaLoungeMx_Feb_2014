@@ -26,15 +26,6 @@ tu solución en un espacio de 25 minutos. La agenda del evento es la siguiente:
 |17:30|18:00| Cierre
 |]
 
--- Data definitiona
-
-data State = Approaching | Spinning | Inviting
-
-type Point = (Float, Float)
-type Logo  = { img: Form, pos: Point, scale: Float }
-type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
-type Input = { click: Bool, delta: Time, pos: Point, dim: (Int,Int) }
-
 -- App parameters
 
 defaultRadius = 350
@@ -42,6 +33,15 @@ defaultRadius = 350
 -- Aux functions
 
 asPoint (x,y) = (toFloat x, toFloat y)
+
+distance2Center (x,y) (w,h) = 
+  let hw = w / 2
+      hh = h / 2
+  in sqrt ((x - hw)^2 + (y - hh)^2) / sqrt (hw^2 + hh^2)
+
+indexedSin i time = sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 
+
+indexedRotationAngle i n time = (turns <| toFloat(i) / toFloat(n) ) - (time * pi / 6000)
 
 -- Images
 
@@ -60,7 +60,14 @@ logos = map (image 120 120) [
   "img/scala.png"
   ] |> map toForm
 
--- Page Logic
+-- Page Model
+
+data State = Approaching | Spinning | Inviting
+
+type Point = (Float, Float)
+type Logo  = { img: Form, pos: Point, scale: Float }
+type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
+type Input = { click: Bool, delta: Time, pos: Point, dim: (Int,Int) }
 
 initialPage : Page
 initialPage = 
@@ -98,11 +105,11 @@ stepContent state content =
   _        -> content   
 
 stepLogos : State -> Time -> Point -> (Int, Int) -> [Logo] -> [Logo]
-stepLogos state delta pos dim logos = 
-  let toAlpha logo        = {logo| img <- relativeAlpha pos dim logo.img }
+stepLogos state time pos dim logos = 
+  let toAlpha logo        = {logo | img <- logo.img |> alpha (1 - distance2Center pos (asPoint dim)) }
       idxLogos            = zip [0..(length logos)-1] logos
-      moveLogo (i,logo)   = (i, { logo | pos <-  position i delta })
-      resizeLogo (i,logo) = (i, { logo | scale <- 1 + 0.2 * (indexedSin i delta) })
+      moveLogo (i,logo)   = (i, { logo | pos <-  position i time })
+      resizeLogo (i,logo) = (i, { logo | scale <- 1 + 0.2 * (indexedSin i time) })
       unindex (i,logo)    = logo
       position i          = positionFor i (length logos) 
   in case state of
@@ -111,18 +118,7 @@ stepLogos state delta pos dim logos =
 
 -- #TODO Abstract rotation by means of a velocity parameter (rad/seg)
 positionFor : Int -> Int -> Time -> Point
-positionFor i n time = 
-  let angle  = (turns <| toFloat(i) / toFloat(n) ) - (time * pi / 6000)
-  in fromPolar (defaultRadius, angle)
-
-indexedSin i time = sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 
-
-distance2Center (x,y) (w,h) = 
-  let hw = w / 2
-      hh = h / 2
-  in sqrt ((x - hw)^2 + (y - hh)^2) / sqrt (hw^2 + hh^2)
-
-relativeAlpha pos dim f = alpha (1 - distance2Center pos (asPoint dim)) f
+positionFor i n time = fromPolar (defaultRadius, indexedRotationAngle i n time)
 
 -- Main. Links input signal with page model evolution and makes display
 
