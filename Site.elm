@@ -85,18 +85,11 @@ stepPage {click, delta, pos, dim} ({center, logos, content, state} as page) =
   let newState = if | state == Approaching && click -> Spinning
                     | state == Spinning && click    -> Inviting
                     | otherwise                     -> state
-  in { page | center  <- stepCenter  newState center
-            , content <- stepContent newState content
-            , logos   <- stepLogos   newState delta pos dim logos
+  in { page | content <- stepContent newState content
+            , center  <- stepCenter  newState center  pos dim
+            , logos   <- stepLogos   newState delta   pos dim logos
             , state   <- newState
      }
-
-stepCenter : State -> Logo -> Logo
-stepCenter state logo = 
-  case state of
-  Approaching -> logo
-  Spinning    -> { logo | img <- lambdaImg }
-  Inviting    -> { logo | img <- scale 0 lambdaImg }
 
 stepContent : State -> Form -> Form
 stepContent state content = 
@@ -104,9 +97,18 @@ stepContent state content =
   Inviting -> content |> alpha 1
   _        -> content   
 
+stepCenter : State -> Logo -> Point -> (Int,Int) -> Logo
+stepCenter state logo pos dim =
+  let newScale = 1 + 0.25 * (distance2Center pos (asPoint dim))
+  in case state of
+    Approaching -> { logo | scale <- newScale }
+    Spinning    -> { logo | scale <- newScale, img <- lambdaImg }
+    Inviting    -> { logo | img <- scale 0 lambdaImg }
+
 stepLogos : State -> Time -> Point -> (Int, Int) -> [Logo] -> [Logo]
 stepLogos state time pos dim logos = 
-  let toAlpha logo        = {logo | img <- logo.img |> alpha (1 - distance2Center pos (asPoint dim)) }
+  let newAlpha            = 1 - distance2Center pos (asPoint dim)
+      toAlpha logo        = { logo | img <- logo.img |> alpha newAlpha }
       idxLogos            = zip [0..(length logos)-1] logos
       moveLogo (i,logo)   = (i, { logo | pos <-  position i time })
       resizeLogo (i,logo) = (i, { logo | scale <- 1 + 0.2 * (indexedSin i time) })
