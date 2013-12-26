@@ -31,7 +31,7 @@ tu solución en un espacio de 25 minutos. La agenda del evento es la siguiente:
 data State = Approaching | Spinning | Inviting
 
 type Point = (Float, Float)
-type Logo  = { img: Form, pos: Point }
+type Logo  = { img: Form, pos: Point, scale: Float }
 type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
 type Input = { click: Bool, delta: Time, pos: Point, dim: (Int,Int) }
 
@@ -67,8 +67,8 @@ initialPage : Page
 initialPage = 
   let idxLogos       = zip [0..(length logos)-1] logos
       position i     = positionFor i (length logos) 
-      moveLogo (i,l) = { img = l, pos = position i 0 }
-  in { center  = { img = alonzoImg, pos = (0,0) }
+      moveLogo (i,l) = { img = l, pos = position i 0, scale = 1 }
+  in { center  = { img = alonzoImg, pos = (0,0), scale = 1 }
      , logos   = idxLogos |> map moveLogo
      , content = invitation |> toForm |> alpha 0
      , state   = Approaching
@@ -96,7 +96,7 @@ stepLogos : State -> Time -> Point -> (Int, Int) -> [Logo] -> [Logo]
 stepLogos state delta pos dim logos = 
   let idxLogos            = zip [0..(length logos)-1] <| map .img logos
       position i          = positionFor i (length logos) 
-      moveLogo (i,l)      = { img = l, pos = position i delta }
+      moveLogo (i,logo)   = { img = logo, pos = position i delta, scale = 1 }
       resizeLogo (i,logo) = (i, resize i delta logo)
       toAlpha logo        = {logo| img <- relativeAlpha pos dim logo.img }
   in case state of
@@ -117,16 +117,19 @@ positionFor i n time =
 
 -- #FIXME it depends on time, not on the previous state
 -- #TODO abstract velocity of expansion/contraction by means of a parameter (rad/seg ?)
+
+indexedSin i time = sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 
+
 resize : Int -> Time -> Form -> Form
 resize i time form = 
-  scale (1 + 0.2 *  (sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 )) <| head (drop i logos)
+  scale (1 + 0.2 * (indexedSin i time)) <| head (drop i logos)
 
 distance2Center (x,y) (w,h) = 
-  let hw = toFloat(w) / 2
-      hh = toFloat(h) / 2
+  let hw = w / 2
+      hh = h / 2
   in sqrt ((x - hw)^2 + (y - hh)^2) / sqrt (hw^2 + hh^2)
 
-relativeAlpha pos dim f = alpha (1 - distance2Center pos dim) f
+relativeAlpha pos dim f = alpha (1 - distance2Center pos (asPoint dim)) f
 
 -----------------
 delta = foldp (+) 0 (fps 30) -- inSeconds <~fps 30
