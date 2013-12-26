@@ -17,12 +17,12 @@ tu solución en un espacio de 25 minutos. La agenda del evento es la siguiente:
 |Inicio|Fin|Descripción
 |------|---|-----------
 |10:00|10:30| Opening
-|10:30|11:30| Plática por @sergiodnila
+|10:30|11:30| Plática "Introducción al cálculo lambda" (@sergiodnila)
 |11:30|13:00| Presentaciones de soluciones a los problemas
-|13:00|14:00| Plática por @lux_spes
+|13:00|14:00| Plática "Introducción a matemática" (@lux_spes)
 |14:00|15:00| Comida
 |15:00|16:30| Presentaciones de soluciones a los problemas.
-|16:30|17:30| Plática por @hiphoox
+|16:30|17:30| Plática "Aplicaciones masivamente concurrentes" (@hiphoox)
 |17:30|18:00| Cierre
 |]
 
@@ -60,7 +60,6 @@ logos = map (image 120 120) [
   "img/scala.png"
   ] |> map toForm
 
-
 -- Page Logic
 
 initialPage : Page
@@ -92,6 +91,12 @@ stepCenter state logo =
   Spinning    -> { logo | img <- lambdaImg }
   Inviting    -> { logo | img <- scale 0 lambdaImg }
 
+stepContent : State -> Form -> Form
+stepContent state content = 
+  case state of
+  Inviting -> content |> alpha 1
+  _        -> content   
+
 stepLogos : State -> Time -> Point -> (Int, Int) -> [Logo] -> [Logo]
 stepLogos state delta pos dim logos = 
   let toAlpha logo        = {logo| img <- relativeAlpha pos dim logo.img }
@@ -104,26 +109,13 @@ stepLogos state delta pos dim logos =
     Approaching -> logos    |> map toAlpha
     _           -> idxLogos |> map (unindex . moveLogo . resizeLogo) 
 
-stepContent : State -> Form -> Form
-stepContent state content = 
-  case state of
-  Inviting -> content |> alpha 1
-  _        -> content   
-
 -- #TODO Abstract rotation by means of a velocity parameter (rad/seg)
 positionFor : Int -> Int -> Time -> Point
 positionFor i n time = 
   let angle  = (turns <| toFloat(i) / toFloat(n) ) - (time * pi / 6000)
   in fromPolar (defaultRadius, angle)
 
--- #FIXME it depends on time, not on the previous state
--- #TODO abstract velocity of expansion/contraction by means of a parameter (rad/seg ?)
-
 indexedSin i time = sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 
-
-resize : Int -> Time -> Form -> Form
-resize i time form = 
-  scale (1 + 0.2 * (indexedSin i time)) <| head (drop i logos)
 
 distance2Center (x,y) (w,h) = 
   let hw = w / 2
@@ -132,21 +124,20 @@ distance2Center (x,y) (w,h) =
 
 relativeAlpha pos dim f = alpha (1 - distance2Center pos (asPoint dim)) f
 
------------------
-delta = foldp (+) 0 (fps 30) -- inSeconds <~fps 30
+-- Main. Links input signal with page model evolution and makes display
+
+display : (Int,Int) -> Page -> Element
+display (w,h) {center, logos, content, state} = 
+  let draw logo = logo.img |> move logo.pos |> scale logo.scale
+  in collage w h <| draw center :: (map draw logos) ++ [content]
+
+delta = foldp (+) 0 (fps 30)
 input = sampleOn delta <| Input <~ Mouse.isDown
                                  ~ delta
                                  ~ (asPoint <~ Mouse.position)
                                  ~ Window.dimensions
 
 pageState = foldp stepPage initialPage input
-
------------------
-
-display : (Int,Int) -> Page -> Element
-display (w,h) {center, logos, content, state} = 
-  let draw logo = logo.img |> move logo.pos |> scale logo.scale
-  in collage w h <| draw center :: (map draw logos) ++ [content]
 
 main = lift2 display Window.dimensions pageState
 
