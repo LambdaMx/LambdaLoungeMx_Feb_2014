@@ -8,22 +8,52 @@ import Graphics.Element
 invitation = [markdown|
 # ¡ Bienvenido a Lambda Lounge Mx !
 **Lambda Lounge Mx** es un evento para tí, que te interesa compartir experiencias 
-y conocimiento relacionado a la programación funcional, así como aprender de 
-otras personas sobre estos temas. El único requisito para que participes es
-que resuelvas en un lenguaje o estilo funcional cualquiera de los [dos 
-problemas](./problemas.elm) que hemos planteado y que estés dispuesto a exponer
-tu solución en un espacio de 25 minutos. La agenda del evento es la siguiente: 
+y conocimiento relacionados al estilo de programación funcional, así como aprender 
+más sobre éste tema a partir de las pláticas y exposiciones de otros participantes.
 
-|Inicio|Fin|Descripción
-|------|---|-----------
-|10:00|10:30| Opening
-|10:30|11:30| Plática "Introducción al cálculo lambda" (@sergiodnila)
-|11:30|13:00| Presentaciones de soluciones a los problemas
-|13:00|14:00| Plática "Introducción a matemática" (@lux_spes)
-|14:00|15:00| Comida
-|15:00|16:30| Presentaciones de soluciones a los problemas.
-|16:30|17:30| Plática "Aplicaciones masivamente concurrentes" (@hiphoox)
-|17:30|18:00| Cierre
+Es todo un día lleno de pláticas invitadas, discusiones y presentaciones de soluciones
+a problemas específicos, todo desde el punto de vista de la **programación funcional**.
+
+Lisp, Haskell, Erlang, ML, F#, Sala ... ¡todos son bienvenidos aquí! ... Bueno, casi todos :-P
+
+### Agenda
+
+La agenda del evento es la siguiente: 
+
+|Inicio  | | |Fin    | | |Descripción
+|:------:|-|-|:-----:|-|-|:----------
+|10:00   | | |10:30  | | | Apertura
+|10:30   | | |11:30  | | | "Introducción al cálculo lambda" por @sergiodnila
+|11:30   | | |13:00  | | | Presentaciones de soluciones a los problemas
+|13:00   | | |14:00  | | | "Introducción a matemática" por @lux_spes
+|14:00   | | |15:00  | | | Comida
+|15:00   | | |16:30  | | | Presentaciones de soluciones a los problemas
+|16:30   | | |17:30  | | | "Aplicaciones masivamente concurrentes" por @hiphoox
+|17:30   | | |18:00  | | | Cierre
+
+### Lugar y Fecha
+
+La cita es el próximo 25 de Enero del 2014 en Uny-II.
+
+Calle San Lorenzo #1009, piso 4. Colonia del Valle. 
+Delegación Benito Juárez, México, D.F.
+
+### Registro
+
+Solo hay dos requisitos para que participes:
+
+1. Que resuelvas en un lenguaje o estilo funcional uno de los [dos problemas]() 
+que hemos planteado y que estés dispuesto a platicarnos tu solución (código) en 
+un espacio de 25 minutos.
+
+2. Que te registres [aquí]()
+
+### Trivia
+Al entrar a esta página aparece el rostro estilizado de un personaje
+histórico para las ciencias de la computación. ¿Sabes quién es y puedes adivinar
+por qué lo incluimos? Después de registrarte en el evento, envía tu respuesta
+[aquí](http://j.mp/19l2COA). Las primeras 3 personas en responder acertadamente 
+recibirán un premio sorpresa el día del evento ;-)
 |]
 
 -- App parameters
@@ -39,9 +69,11 @@ distance2Center (x,y) (w,h) =
       hh = h / 2
   in sqrt ((x - hw)^2 + (y - hh)^2) / sqrt (hw^2 + hh^2)
 
-indexedSin i time = sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 
-
+-- #TODO Abstract rotation by means of a velocity parameter (rad/seg)
 indexedRotationAngle i n time = (turns <| toFloat(i) / toFloat(n) ) - (time * pi / 6000)
+
+-- #TODO Abstract 
+indexedSin i time = sin <| (time * pi / 4000) + toFloat(i) * 3  * pi / 5 
 
 -- Images
 
@@ -76,7 +108,7 @@ initialPage =
       moveLogo (i,l) = { img = l, pos = position i 0, scale = 1 }
   in { center  = { img = alonzoImg, pos = (0,0), scale = 1 }
      , logos   = idxLogos |> map moveLogo
-     , content = invitation |> toForm |> alpha 0
+     , content = invitation |> width 500 |> container 500 1000 midTop |> toForm |> alpha 0
      , state   = Approaching
      }
 
@@ -103,12 +135,13 @@ stepCenter state logo pos dim =
   in case state of
     Approaching -> { logo | scale <- newScale }
     Spinning    -> { logo | scale <- newScale, img <- lambdaImg }
-    Inviting    -> { logo | img <- scale 0 lambdaImg }
+    Inviting    -> { logo | img <- scale 0 logo.img }
 
 stepLogos : State -> Time -> Point -> (Int, Int) -> [Logo] -> [Logo]
 stepLogos state time pos dim logos = 
   let newAlpha            = 1 - distance2Center pos (asPoint dim)
       toAlpha logo        = { logo | img <- logo.img |> alpha newAlpha }
+      toAlpha25 logo      = { logo | img <- logo.img |> alpha 0.25 }
       idxLogos            = zip [0..(length logos)-1] logos
       moveLogo (i,logo)   = (i, { logo | pos <-  position i time })
       resizeLogo (i,logo) = (i, { logo | scale <- 1 + 0.2 * (indexedSin i time) })
@@ -116,9 +149,9 @@ stepLogos state time pos dim logos =
       position i          = positionFor i (length logos) 
   in case state of
     Approaching -> logos    |> map toAlpha
-    _           -> idxLogos |> map (unindex . moveLogo . resizeLogo) 
+    Spinning    -> idxLogos |> map (unindex . moveLogo . resizeLogo) 
+    Inviting    -> idxLogos |> map (unindex . moveLogo . resizeLogo) |> map toAlpha25
 
--- #TODO Abstract rotation by means of a velocity parameter (rad/seg)
 positionFor : Int -> Int -> Time -> Point
 positionFor i n time = fromPolar (defaultRadius, indexedRotationAngle i n time)
 
