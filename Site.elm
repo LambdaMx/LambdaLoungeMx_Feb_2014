@@ -58,7 +58,9 @@ recibirán un premio sorpresa el día del evento ;-)
 
 -- App parameters
 
-defaultRadius = 350
+defaultRadius    = 350
+defaultTxtWidth  = 500
+defaultTxtHeight = 1200
 
 -- Aux functions
 
@@ -104,11 +106,13 @@ type Input = { click: Bool, delta: Time, pos: Point, dim: (Int,Int) }
 initialPage : Page
 initialPage = 
   let idxLogos       = zip [0..(length logos)-1] logos
-      position i     = positionFor i (length logos) 
-      moveLogo (i,l) = { img = l, pos = position i 0, scale = 1 }
+      moveLogo (i,l) = { img = l, pos = positionFor i (length logos) 0, scale = 1 }
   in { center  = { img = alonzoImg, pos = (0,0), scale = 1 }
      , logos   = idxLogos |> map moveLogo
-     , content = invitation |> width 500 |> container 500 1000 midTop |> toForm |> alpha 0
+     , content = invitation |> width defaultTxtWidth 
+                            |> container defaultTxtWidth defaultTxtHeight midTop 
+                            |> toForm 
+                            |> alpha 0
      , state   = Approaching
      }
 
@@ -127,7 +131,7 @@ stepContent : State -> Form -> Form
 stepContent state content = 
   case state of
   Inviting -> content |> alpha 1
-  _        -> content   
+  _        -> content
 
 stepCenter : State -> Logo -> Point -> (Int,Int) -> Logo
 stepCenter state logo pos dim =
@@ -143,10 +147,9 @@ stepLogos state time pos dim logos =
       toAlpha logo        = { logo | img <- logo.img |> alpha newAlpha }
       toAlpha25 logo      = { logo | img <- logo.img |> alpha 0.25 }
       idxLogos            = zip [0..(length logos)-1] logos
-      moveLogo (i,logo)   = (i, { logo | pos <-  position i time })
+      moveLogo (i,logo)   = (i, { logo | pos <-  positionFor i (length logos) time })
       resizeLogo (i,logo) = (i, { logo | scale <- 1 + 0.2 * (indexedSin i time) })
       unindex (i,logo)    = logo
-      position i          = positionFor i (length logos) 
   in case state of
     Approaching -> logos    |> map toAlpha
     Spinning    -> idxLogos |> map (unindex . moveLogo . resizeLogo) 
@@ -160,15 +163,14 @@ positionFor i n time = fromPolar (defaultRadius, indexedRotationAngle i n time)
 display : (Int,Int) -> Page -> Element
 display (w,h) {center, logos, content, state} = 
   let draw logo = logo.img |> move logo.pos |> scale logo.scale
-  in collage w h <| draw center :: (map draw logos) ++ [content]
+  in collage w (max h defaultTxtHeight) <| 
+     draw center :: (map draw logos) ++ [content]
 
 delta = foldp (+) 0 (fps 30)
 input = sampleOn delta <| Input <~ Mouse.isDown
                                  ~ delta
                                  ~ (asPoint <~ Mouse.position)
                                  ~ Window.dimensions
-
-pageState = foldp stepPage initialPage input
-
-main = lift2 display Window.dimensions pageState
-
+main = 
+  let pageState = foldp stepPage initialPage input
+  in display <~ Window.dimensions ~ pageState
