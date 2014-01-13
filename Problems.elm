@@ -1,6 +1,7 @@
+import Window
 
 content = [markdown|
-# Problemas del Lambda Lounge Mx 2014
+# Problemas del Lambda Lounge Mx
 
 ## Problema 1: Peg Game
 
@@ -67,4 +68,8 @@ twitter y la fuerza de cada una de estas relaciones.
 
 |]
 
-main = content |> width 600
+display : (Int,Int) -> Element
+display (w,h) = 
+  content |> width 600 |> container w 1250 middle  
+
+main = lift display Window.dimensions 
