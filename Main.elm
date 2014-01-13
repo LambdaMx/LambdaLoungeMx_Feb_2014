@@ -107,7 +107,7 @@ data State = Approaching | Spinning | Redirecting | Inviting
 type Point = (Float, Float)
 type Logo  = { img: Form, pos: Point, scale: Float, vx: Float, vy: Float }
 type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
-type Input = { click: Bool, ttime: Time, delta: Time, pos: Point, dim: (Int,Int) }
+type Input = { click: Int, ttime: Time, delta: Time, pos: Point, dim: (Int,Int) }
 
 initialPage : Page
 initialPage = 
@@ -129,10 +129,10 @@ initialPage =
 
 stepPage : Input -> Page -> Page
 stepPage {click, ttime, delta, pos, dim} ({center, logos, content, state} as page) = 
-  let newState = if | state == Approaching && click -> Spinning
-                    | state == Spinning && click    -> Redirecting
-                    | state == Redirecting          -> Inviting
-                    | otherwise                     -> state
+  let newState = if | state == Approaching && click == 1 -> Spinning
+                    | state == Spinning && click == 2    -> Redirecting
+                    | state == Redirecting               -> Inviting
+                    | otherwise                          -> state
   in { page | content <- stepContent newState content
             , center  <- stepCenter  newState center  pos dim
             , logos   <- stepLogos   newState logos   pos dim ttime delta
@@ -203,7 +203,7 @@ display (w,h) {center, logos, content, state} =
 input = 
   let source = fps 30
       ttime  = foldp (+) 0 source
-  in sampleOn ttime <| Input <~ Mouse.isDown
+  in sampleOn ttime <| Input <~ count Mouse.clicks
                               ~ ttime
                               ~ (inSeconds <~ source)
                               ~ (asPoint <~ Mouse.position)
