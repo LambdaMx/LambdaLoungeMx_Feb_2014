@@ -19,35 +19,30 @@ caiga hasta el fondo del tablero en un lugar específico.
 Tu tarea es, dado un tablero de juego, determinar el lugar óptimo para soltar 
 la pelota, tal que maximice la probabilidad de que caiga en un lugar específico.
 
-La siguiente figura muestra un ejemplo de un tablero con 5 filas y 5 columnas. 
+La siguiente figura muestra un ejemplo de un tablero con 5 filas y 5 columnas 
+('x' indica una pija, '.' indica espacio vacío):
+
+      x.x.x.x.x 
+       x...x.x 
+      x...x.x.x 
+       x.x...x 
+      x.x.x.x.x
+       G   
+
 Nota que la fila superior tiene 5 pijas, la siguiente tiene 4, la siguiente 5, 
 etc. Con 5 columnas, existen 4 opciones dónde dejar caer la pelota (indexando 
-desde 0). Nota que en este ejemplo, faltan 3 pijas. Por convención, diremos que 
-la fila de la parte superior es la fila 0, y la pija que se encuentra más a la 
-izquierda se encuentra en la columna 0, de tal manera que las pijas faltantes 
-se encuentran en (1,1), (2,1) y (3,2). En este ejemplo, el mejor lugar para 
-soltar la pelota es en la columna 1 (la que está más a la izquierda), la cual 
-te da un 50% de probabilidad de que caiga en el objetivo.
-
->  x.x.x.x.x 
->
->   x...x.x 
->
->  x...x.x.x 
->
->   x.x...x 
->
->  x.x.x.x.x
->
->   G   
-
-'x' indica una pija, '.' indica espacio vacío.
+desde 0). Nota también que en este ejemplo, faltan 3 pijas. Por convención, 
+diremos que la fila de la parte superior es la fila 0, y la pija que se 
+encuentra más a la izquierda se encuentra en la columna 0, de tal manera que 
+las pijas faltantes se encuentran en (1,1), (2,1) y (3,2). En este ejemplo, el 
+mejor lugar para soltar la pelota es en la columna 1 (la que está más a la 
+izquierda), la cual te da un 50% de probabilidad de que caiga en el objetivo.
 
 **Entradas:**
 
 1. Número de filas y columnas, (filas impares)
 2. Posicion de pijas faltantes (no hay faltantes en 1a fila)
-3. Columna de salida    
+3. Columna de salida
 
 **Salida:**
 
