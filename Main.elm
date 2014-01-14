@@ -65,7 +65,7 @@ Puedes ver el código [aquí](https://github.com/MachinesAreUs/LambdaLoungeMx_20
 -- App parameters
 
 defaultRadius    = 350
-defaultTxtWidth  = 600
+defaultTxtWidth  = 500
 defaultTxtHeight = 1200
 defaultLogoSize  = 200
 

@@ -70,6 +70,6 @@ twitter y la fuerza de cada una de estas relaciones.
 
 display : (Int,Int) -> Element
 display (w,h) = 
-  content |> width 600 |> container w 1250 middle  
+  content |> width 500 |> container w 1300 middle  
 
 main = lift display Window.dimensions 
