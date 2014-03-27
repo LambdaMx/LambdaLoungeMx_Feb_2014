@@ -6,6 +6,8 @@ import Graphics.Element
 alonzoImg = image 200 200 "img/AlonzoChurch.png" |> toForm
 
 logos = map (image 120 120) [
+  "img/scheme.png",
+  "img/scala.png"
   "img/clojure.png", 
   "img/elixir.png", 
   "img/elm.png", 
@@ -13,8 +15,6 @@ logos = map (image 120 120) [
   "img/fsharp.png", 
   "img/haskell.png", 
   "img/mathematica.png",
-  "img/scheme.png",
-  "img/scala.png"
   ] |> map toForm
 
 logoWheel time =
