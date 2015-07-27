@@ -1,11 +1,20 @@
-import Mouse
-import Keyboard
+import Mouse exposing(..)
+import Keyboard exposing(..)
+import List exposing(..)
+import Signal exposing((<~), (~), foldp, sampleOn)
+import Time exposing(..)
+import Color exposing(..)
+import Graphics.Element exposing (..)
+import Graphics.Collage exposing (..)
+import Markdown exposing (defaultOptions, toElementWith)
 import Window
-import Graphics.Element
 
 -- Content
 
-invitation = [markdown|
+markdownOptions = 
+  { defaultOptions | githubFlavored <- Just { tables = True, breaks = True } }
+
+invitation = toElementWith markdownOptions """
 # ¡ Bienvenido a Lambda Lounge Mx !
 **Lambda Lounge Mx** es un evento para tí, que te interesa compartir experiencias 
 y conocimiento relacionados al estilo de programación funcional, así como aprender 
@@ -60,12 +69,12 @@ recibirán un premio sorpresa el día del evento ;-)
 [Programación Funcional Reactiva](http://en.wikipedia.org/wiki/Functional_reactive_programming)
 con el lenguaje [Elm](http://elm-lang.org/). 
 Puedes ver el código [aquí](https://github.com/MachinesAreUs/LambdaLoungeMx_2014)
-|]
+"""
 
 -- App parameters
 
 defaultRadius    = 350
-defaultTxtWidth  = 500
+defaultTxtWidth  = 600
 defaultTxtHeight = 1200
 defaultLogoSize  = 200
 
@@ -102,16 +111,16 @@ logos = map (image 120 120) [
 
 -- Page Model
 
-data State = Approaching | Spinning | Redirecting | Inviting
+type State = Approaching | Spinning | Redirecting | Inviting
 
-type Point = (Float, Float)
-type Logo  = { img: Form, pos: Point, scale: Float, vx: Float, vy: Float }
-type Page  = { center: Logo, logos: [Logo], content: Form, state:State }
-type Input = { click: Int, ttime: Time, delta: Time, pos: Point, dim: (Int,Int) }
+type alias Point = (Float, Float)
+type alias Logo  = { img: Form, pos: Point, scale: Float, vx: Float, vy: Float }
+type alias Page  = { center: Logo, logos: List Logo, content: Form, state:State }
+type alias Input = { click: Int, ttime: Time, delta: Time, pos: Point, dim: (Int,Int) }
 
 initialPage : Page
 initialPage = 
-  let idxLogos       = zip [0..(length logos)-1] logos
+  let idxLogos       = map2 (,) [0..(length logos)-1] logos
       moveLogo (i,l) = { img = l
                        , pos = positionFor i (length logos) 0
                        , scale = 1
@@ -154,18 +163,18 @@ stepCenter state logo pos dim =
     Inviting    -> { logo | img <- scale 0 logo.img }
     Redirecting -> { logo | img <- scale 0 logo.img }
 
-stepLogos : State -> [Logo] -> Point -> (Int, Int) -> Time -> Time -> [Logo]
+stepLogos : State -> List Logo -> Point -> (Int, Int) -> Time -> Time -> List Logo
 stepLogos state logos pos dim time delta  = 
   let newAlpha            = 1 - distance2Center pos (asPoint dim)
       toAlpha logo        = { logo | img <- logo.img |> alpha newAlpha }
       toAlpha25 logo      = { logo | img <- logo.img |> alpha 0.25 }
-      idxLogos            = zip [0..(length logos)-1] logos
+      idxLogos            = map2 (,) [0..(length logos)-1] logos
       spin (i,logo)       = (i, { logo | pos <-  positionFor i (length logos) time })
       resizeLogo (i,logo) = (i, { logo | scale <- 1 + 0.2 * (indexedSin i time) })
       unindex (i,logo)    = logo
       angle (r,theta)     = theta
-      toLinearMov logo    = { logo | vx <- 150 * cos ((angle . toPolar) logo.pos) 
-                                   , vy <- 150 * sin ((angle . toPolar) logo.pos) }
+      toLinearMov logo    = { logo | vx <- 150 * cos ((angle << toPolar) logo.pos) 
+                                   , vy <- 150 * sin ((angle << toPolar) logo.pos) }
       xpos logo           = fst logo.pos
       ypos logo           = snd logo.pos
       halfWindowWidth     = toFloat (fst dim) / 2
@@ -180,8 +189,8 @@ stepLogos state logos pos dim time delta  =
                             }
   in case state of
     Approaching  -> logos    |> map toAlpha
-    Spinning     -> idxLogos |> map (unindex . spin . resizeLogo) 
-    Inviting     -> idxLogos |> map (unindex . resizeLogo) |> map (moveLinear . toAlpha25)
+    Spinning     -> idxLogos |> map (unindex << spin << resizeLogo) 
+    Inviting     -> idxLogos |> map (unindex << resizeLogo) |> map (moveLinear << toAlpha25)
     Redirecting  -> logos    |> map toLinearMov
 
 stepV v upperCollision lowerCollision =
@@ -201,9 +210,10 @@ display (w,h) {center, logos, content, state} =
      draw center :: (map draw logos) ++ [content]
 
 input = 
-  let source = fps 30
-      ttime  = foldp (+) 0 source
-  in sampleOn ttime <| Input <~ count Mouse.clicks
+  let source     = fps 30
+      ttime      = foldp (+) 0 source
+      clickCount = foldp (\_ t -> t + 1) 0 Mouse.clicks
+  in sampleOn ttime <| Input <~ clickCount
                               ~ ttime
                               ~ (inSeconds <~ source)
                               ~ (asPoint <~ Mouse.position)
